@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Rollcall Scanner - Attendance</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.datatables.net/1.11.5/css/dataTables.bootstrap5.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <link rel="stylesheet" href="css/style.css">
+    
+    <!-- Load jQuery FIRST -->
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.datatables.net/1.11.5/js/jquery.dataTables.min.js"></script>
+    <script src="https://cdn.datatables.net/1.11.5/js/dataTables.bootstrap5.min.js"></script>
+</head>
+<body>
+    <script>
+        const API_BASE_URL = 'http://localhost:3000/api';
+        
+        // Check authentication
+        fetch(`${API_BASE_URL}/check-auth`, {
+            credentials: 'include'
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (!data.loggedIn) {
+                window.location.href = 'login.html';
+            }
+        })
+        .catch(() => {
+            window.location.href = 'login.html';
+        });
+    </script>
+
+    <!-- Navbar -->
+    <nav class="navbar navbar-expand-lg navbar-dark">
+        <div class="container-fluid">
+            <a class="navbar-brand" href="#">
+                <i class="fas fa-qrcode me-2"></i>
+                Rollcall Scanner
+            </a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav me-auto">
+                    <li class="nav-item">
+                        <a class="nav-link" href="index.html">Dashboard</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link active" href="dashboard.html">Attendance</a>
+                    </li>
+                </ul>
+                <ul class="navbar-nav">
+                    <li class="nav-item">
+                        <a class="nav-link" href="#" id="logoutBtn">
+                            <i class="fas fa-sign-out-alt me-1"></i>Logout
+                        </a>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container mt-4">
+        <h2 class="mb-4">
+            <i class="fas fa-clock me-2" style="color: #00f2fe;"></i>
+            Attendance Records
+        </h2>
+        
+        <!-- Filter Section -->
+        <div class="card">
+            <div class="card-header">
+                <i class="fas fa-filter me-2"></i>
+                Filter Records
+            </div>
+            <div class="card-body">
+                <form id="filterForm" class="row g-3">
+                    <div class="col-md-3">
+                        <label class="form-label">Start Date</label>
+                        <input type="date" class="form-control" id="start_date">
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label">End Date</label>
+                        <input type="date" class="form-control" id="end_date">
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label">Student</label>
+                        <select class="form-control" id="student_filter">
+                            <option value="">All Students</option>
+                        </select>
+                    </div>
+                    <div class="col-md-2 d-flex align-items-end">
+                        <button type="submit" class="btn btn-primary w-100">Filter</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- Attendance Table -->
+        <div class="card mt-4 mb-5">
+            <div class="card-header">
+                <i class="fas fa-list me-2"></i>
+                Attendance Log
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table id="attendanceTable" class="table">
+                        <thead>
+                            <tr>
+                                <th>Date</th>
+                                <th>Time</th>
+                                <th>Student ID</th>
+                                <th>Student Name</th>
+                                <th>IC Number</th>
+                                <th>Status</th>
+                            </tr>
+                        </thead>
+                        <tbody></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Notification Container -->
+    <div id="notification-container"></div>
+
+    <script>
+        // Logout function
+        $('#logoutBtn').click(function(e) {
+            e.preventDefault();
+            $.ajax({
+                url: `${API_BASE_URL}/logout`,
+                method: 'POST',
+                xhrFields: { withCredentials: true },
+                success: function() {
+                    window.location.href = 'login.html';
+                }
+            });
+        });
+
+        // Load students for filter dropdown
+        function loadStudentFilter() {
+            $.ajax({
+                url: `${API_BASE_URL}/students`,
+                method: 'GET',
+                xhrFields: { withCredentials: true },
+                success: function(students) {
+                    const select = $('#student_filter');
+                    select.empty();
+                    select.append('<option value="">All Students</option>');
+                    students.forEach(s => {
+                        select.append(`<option value="${s.student_id}">${s.student_name}</option>`);
+                    });
+                }
+            });
+        }
+
+        // Load attendance records
+        function loadAttendanceRecords() {
+            let url = `${API_BASE_URL}/attendance`;
+            const params = [];
+            
+            const startDate = $('#start_date').val();
+            const endDate = $('#end_date').val();
+            const studentId = $('#student_filter').val();
+            
+            if (startDate) params.push(`start_date=${startDate}`);
+            if (endDate) params.push(`end_date=${endDate}`);
+            if (studentId) params.push(`student_id=${studentId}`);
+            
+            if (params.length) url += '?' + params.join('&');
+            
+            $.ajax({
+                url: url,
+                method: 'GET',
+                xhrFields: { withCredentials: true },
+                success: function(records) {
+                    const tbody = $('#attendanceTable tbody');
+                    tbody.empty();
+                    
+                    if (records.length === 0) {
+                        tbody.append('<tr><td colspan="6" class="text-center">No records found</td></tr>');
+                        return;
+                    }
+                    
+                    records.forEach(record => {
+                        const date = new Date(record.scan_date).toLocaleDateString();
+                        tbody.append(`
+                            <tr>
+                                <td>${date}</td>
+                                <td>${record.scan_time}</td>
+                                <td>${record.student_id}</td>
+                                <td>${record.student_name}</td>
+                                <td>${record.ic_number}</td>
+                                <td><span class="badge bg-success">Present</span></td>
+                            </tr>
+                        `);
+                    });
+                }
+            });
+        }
+
+        // Initialize page
+        $(document).ready(function() {
+            loadStudentFilter();
+            loadAttendanceRecords();
+            
+            $('#filterForm').submit(function(e) {
+                e.preventDefault();
+                loadAttendanceRecords();
+            });
+        });
+    </script>
+</body>
+</html>
