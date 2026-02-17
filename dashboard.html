@@ -20,9 +20,9 @@
         const API_BASE_URL = 'https://rollcall-backend1.onrender.com/api';
         
         // Check authentication
-        fetch(`${API_BASE_URL}/check-auth`, {
-            credentials: 'include'
-        })
+      fetch(`${API_BASE_URL}/check-auth`, {
+    credentials: 'include'  // Add this!
+})
         .then(response => response.json())
         .then(data => {
             if (!data.loggedIn) {
