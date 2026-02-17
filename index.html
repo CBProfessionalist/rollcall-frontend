@@ -21,8 +21,8 @@
         
         // Check authentication
         fetch(`${API_BASE_URL}/check-auth`, {
-            credentials: 'include'
-        })
+    credentials: 'include'  // Add this!
+})
         .then(response => response.json())
         .then(data => {
             if (!data.loggedIn) {
